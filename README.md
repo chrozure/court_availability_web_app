@@ -41,7 +41,7 @@ Start the backend server (port 3001):
 
 ```bash
 cd server
-node index.js
+npx tsx src/index.ts
 ```
 
 Start the frontend dev server (port 5173):
@@ -92,17 +92,22 @@ This app is designed to deploy as a single process. For platforms like **Render*
 ## Project structure
 
 ```
-server/          Express backend
-  index.js       API server (port 3001)
-  scraper.js     Fetches data from bookable.net.au API
-  venues.js      Venue configuration
-
-client/          React frontend (Vite)
+server/              Express backend (TypeScript)
   src/
-    App.jsx              Main app with date picker and refresh
+    index.ts         API server (port 3001)
+    scraper.ts       Fetches data from bookable.net.au API
+    venues.ts        Venue configuration
+    types.ts         Shared type definitions
+  dist/              Compiled JS output
+  public/            Built frontend (generated)
+
+client/              React frontend (Vite + TypeScript)
+  src/
+    App.tsx                Main app with date picker and refresh
+    types.ts               Shared type definitions
     components/
-      DatePicker.jsx     Date navigation
-      VenueTimeline.jsx  Venue section with legend
-      CourtTimeline.jsx  Horizontal timeline for a single court
-    index.css            Styles
+      DatePicker.tsx       Date navigation
+      VenueTimeline.tsx    Venue section with legend
+      CourtTimeline.tsx    Horizontal timeline for a single court
+    index.css              Styles
 ```

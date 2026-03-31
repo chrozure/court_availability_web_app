@@ -1,6 +1,8 @@
+import { Venue } from "./types";
+
 // Configuration for venues to fetch from bookable.net.au
 // To add a new venue, just add a new entry with id, name, and bookingUrl.
-const venues = [
+const venues: Venue[] = [
   {
     id: 44,
     name: "Roseville Park Tennis Courts",
@@ -23,4 +25,4 @@ const venues = [
   },
 ];
 
-module.exports = venues;
+export default venues;

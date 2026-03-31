@@ -1,11 +1,16 @@
-function formatLocalDate(d) {
+interface DatePickerProps {
+  value: string;
+  onChange: (date: string) => void;
+}
+
+function formatLocalDate(d: Date): string {
   const y = d.getFullYear()
   const m = String(d.getMonth() + 1).padStart(2, '0')
   const day = String(d.getDate()).padStart(2, '0')
   return `${y}-${m}-${day}`
 }
 
-function DatePicker({ value, onChange }) {
+function DatePicker({ value, onChange }: DatePickerProps) {
   return (
     <div className="date-picker">
       <button

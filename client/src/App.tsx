@@ -1,25 +1,26 @@
 import { useState, useEffect, useCallback } from 'react'
 import VenueTimeline from './components/VenueTimeline'
 import DatePicker from './components/DatePicker'
+import { VenueAvailability } from './types'
 
 function App() {
   const [date, setDate] = useState(() => {
     return new Date().toISOString().split('T')[0]
   })
-  const [venues, setVenues] = useState([])
+  const [venues, setVenues] = useState<VenueAvailability[]>([])
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState(null)
+  const [error, setError] = useState<string | null>(null)
 
-  const fetchAvailability = useCallback(async (selectedDate) => {
+  const fetchAvailability = useCallback(async (selectedDate: string) => {
     setLoading(true)
     setError(null)
     try {
       const res = await fetch(`/api/availability?date=${selectedDate}`)
       if (!res.ok) throw new Error('Failed to fetch availability')
-      const data = await res.json()
+      const data: VenueAvailability[] = await res.json()
       setVenues(data)
     } catch (err) {
-      setError(err.message)
+      setError(err instanceof Error ? err.message : 'Unknown error')
     } finally {
       setLoading(false)
     }

@@ -1,7 +1,13 @@
 import { useState } from 'react'
 import CourtTimeline from './CourtTimeline'
+import { VenueAvailability } from '../types'
 
-function VenueTimeline({ venue, date }) {
+interface VenueTimelineProps {
+  venue: VenueAvailability;
+  date: string;
+}
+
+function VenueTimeline({ venue, date }: VenueTimelineProps) {
   const [collapsed, setCollapsed] = useState(false)
 
   return (

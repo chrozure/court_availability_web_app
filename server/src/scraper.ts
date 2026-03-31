@@ -1,4 +1,13 @@
-const fetch = require("node-fetch");
+import fetch from "node-fetch";
+import {
+  Bookable,
+  Booking,
+  BookingPeriod,
+  Court,
+  Hours,
+  OpeningHourEntry,
+  TimeSlot,
+} from "./types";
 
 const API_BASE = "https://krg-prod.bookable.net.au/api/v2";
 const ORG_ID = 1;
@@ -7,17 +16,20 @@ const JSON_HEADERS = {
   Accept: "application/json",
 };
 
-async function fetchJson(url) {
+async function fetchJson<T>(url: string): Promise<T> {
   const res = await fetch(url, { headers: JSON_HEADERS });
   if (!res.ok) throw new Error(`API error ${res.status}: ${url}`);
-  return res.json();
+  return res.json() as Promise<T>;
 }
 
 /**
  * Fetches availability data for a venue on a given date.
- * Returns an object with courts and their time slots.
+ * Returns an array of courts with their time slots.
  */
-async function fetchVenueAvailability(venueId, date) {
+export async function fetchVenueAvailability(
+  venueId: number,
+  date: string | Date
+): Promise<Court[]> {
   const dateStr =
     date instanceof Date ? date.toISOString().split("T")[0] : date;
 
@@ -28,13 +40,13 @@ async function fetchVenueAvailability(venueId, date) {
 
   // Fetch courts, bookings, and opening hours in parallel
   const [bookables, bookings, openingHours] = await Promise.all([
-    fetchJson(
+    fetchJson<Bookable[]>(
       `${API_BASE}/venues/${venueId}/bookables?externalOnly=true&excludeResource=true&hideNotInSeason=true&date=${dateStr}&capacity=null`
     ),
-    fetchJson(
+    fetchJson<Booking[]>(
       `${API_BASE}/venues/${venueId}/bookingbookablesinperiod?fromDate=${dateStr}&toDate=${nextDateStr}&hideCancelledBooking=true&hideClosure=false&hideWorkBooking=false&hideBookableWorkBooking=true&excludeResource=true&hideRequestOrApplication=true&applyOnlyShowConfirmedBooking=true`
     ),
-    fetchJson(
+    fetchJson<OpeningHourEntry[]>(
       `${API_BASE}/organisations/${ORG_ID}/venues/${venueId}/getopeninghours?fromDate=${dateStr}&toDate=${dateStr}&excludeResource=true`
     ),
   ]);
@@ -50,7 +62,7 @@ async function fetchVenueAvailability(venueId, date) {
   );
 
   // Build opening hours lookup: BookableID -> { open, close }
-  const hoursMap = {};
+  const hoursMap: Record<string, Hours> = {};
   for (const entry of openingHours) {
     if (entry.Value && entry.Value.length > 0) {
       const detail = entry.Value[0];
@@ -65,7 +77,7 @@ async function fetchVenueAvailability(venueId, date) {
   }
 
   // Build bookings lookup: BookableID -> array of { start, end }
-  const bookingsMap = {};
+  const bookingsMap: Record<string, BookingPeriod[]> = {};
   for (const booking of bookings) {
     if (!bookingsMap[booking.BookableID]) {
       bookingsMap[booking.BookableID] = [];
@@ -77,19 +89,20 @@ async function fetchVenueAvailability(venueId, date) {
   }
 
   // Generate 15-minute time slots for each court
-  const courts = tennisCourts.map((court) => {
+  const courts: Court[] = tennisCourts.map((court) => {
     const courtId = court.BookableID;
     const hours = hoursMap[courtId];
     const courtBookings = bookingsMap[courtId] || [];
 
-    // Generate slots from 6am to 10pm (or based on opening hours)
     const slots = generateTimeSlots(dateStr, hours, courtBookings);
 
     return {
       id: courtId,
       name: court.Name,
       hasLighting: court.Attributes
-        ? court.Attributes.some((a) => a.Name === "Lighting" || a.name === "Lighting")
+        ? court.Attributes.some(
+            (a) => a.Name === "Lighting" || a.name === "Lighting"
+          )
         : false,
       slots,
     };
@@ -101,8 +114,12 @@ async function fetchVenueAvailability(venueId, date) {
   return courts;
 }
 
-function generateTimeSlots(dateStr, hours, bookings) {
-  const slots = [];
+function generateTimeSlots(
+  dateStr: string,
+  hours: Hours | undefined,
+  bookings: BookingPeriod[]
+): TimeSlot[] {
+  const slots: TimeSlot[] = [];
   const stepMinutes = 15;
 
   // Default range: 6am to 10pm
@@ -111,7 +128,7 @@ function generateTimeSlots(dateStr, hours, bookings) {
   let endMinute = 0;
 
   if (hours) {
-    const [openH, openM] = hours.open.split(":").map(Number);
+    const [openH] = hours.open.split(":").map(Number);
     startHour = openH;
 
     if (!hours.useSunset && hours.close !== "00:00:00") {
@@ -146,5 +163,3 @@ function generateTimeSlots(dateStr, hours, bookings) {
 
   return slots;
 }
-
-module.exports = { fetchVenueAvailability };

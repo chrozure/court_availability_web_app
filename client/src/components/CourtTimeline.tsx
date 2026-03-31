@@ -1,6 +1,12 @@
 import { useRef, useEffect } from 'react'
+import { Court } from '../types'
 
-function formatTime(timeStr) {
+interface CourtTimelineProps {
+  court: Court;
+  date: string;
+}
+
+function formatTime(timeStr: string): string {
   const [h, m] = timeStr.split(':').map(Number)
   if (m === 0) {
     if (h === 0) return '12am'
@@ -10,8 +16,8 @@ function formatTime(timeStr) {
   return ''
 }
 
-function CourtTimeline({ court, date }) {
-  const scrollRef = useRef(null)
+function CourtTimeline({ court, date }: CourtTimelineProps) {
+  const scrollRef = useRef<HTMLDivElement>(null)
   const now = new Date()
   const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
   const isToday = date === todayStr
