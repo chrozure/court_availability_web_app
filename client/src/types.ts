@@ -1,6 +1,6 @@
 export interface TimeSlot {
   time: string;
-  status: "booked" | "available";
+  status: "booked" | "available" | "closed";
 }
 
 export interface Court {

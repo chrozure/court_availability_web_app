@@ -122,29 +122,35 @@ function generateTimeSlots(
   const slots: TimeSlot[] = [];
   const stepMinutes = 15;
 
-  // Default range: 6am to 10pm
-  let startHour = 6;
-  let endHour = 22;
-  let endMinute = 0;
+  // Fixed display range: 6am to 10pm for all courts
+  const displayStartMinutes = 6 * 60;
+  const displayEndMinutes = 22 * 60;
+
+  // Determine this court's open window
+  let openStartMinutes = displayStartMinutes;
+  let openEndMinutes = displayEndMinutes;
 
   if (hours) {
-    const [openH] = hours.open.split(":").map(Number);
-    startHour = openH;
+    const [openH, openM] = hours.open.split(":").map(Number);
+    openStartMinutes = openH * 60 + (openM || 0);
 
-    if (!hours.useSunset && hours.close !== "00:00:00") {
+    if (hours.close !== "00:00:00") {
       const [closeH, closeM] = hours.close.split(":").map(Number);
-      endHour = closeH;
-      endMinute = closeM;
+      openEndMinutes = closeH * 60 + (closeM || 0);
     }
   }
 
-  const startMinutes = startHour * 60;
-  const endMinutes = endHour * 60 + endMinute;
-
-  for (let mins = startMinutes; mins < endMinutes; mins += stepMinutes) {
+  for (let mins = displayStartMinutes; mins < displayEndMinutes; mins += stepMinutes) {
     const hour = Math.floor(mins / 60);
     const minute = mins % 60;
     const timeStr = `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+
+    // Check if this slot is outside opening hours
+    if (mins < openStartMinutes || mins >= openEndMinutes) {
+      slots.push({ time: timeStr, status: "closed" });
+      continue;
+    }
+
     const slotStart = new Date(`${dateStr}T${timeStr}:00`);
     const slotEnd = new Date(slotStart.getTime() + stepMinutes * 60000);
 

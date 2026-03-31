@@ -277,6 +277,21 @@ body {
   background: #dcc5c5;
 }
 
+.slot.closed {
+  background: #d1d5db;
+  border-right: 1px solid #c0c4cc;
+  cursor: default;
+}
+
+.slot.closed:hover {
+  background: #c0c4cc;
+}
+
+.slot.closed.past {
+  background: #d1d5db;
+  border-right: 1px solid #c0c4cc;
+}
+
 .slot.hour-start {
   border-left: 2px solid #9ca3af;
 }
@@ -333,6 +348,11 @@ body {
 .legend-swatch.past-booked {
   background: #e8d5d5;
   border: 1px solid #dcc5c5;
+}
+
+.legend-swatch.closed {
+  background: #d1d5db;
+  border: 1px solid #c0c4cc;
 }
 
 /* Responsive */

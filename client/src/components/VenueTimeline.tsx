@@ -64,6 +64,10 @@ function VenueTimeline({ venue, date }: VenueTimelineProps) {
             <div className="legend-swatch past-booked" />
             <span>Past (was booked)</span>
           </div>
+          <div className="legend-item">
+            <div className="legend-swatch closed" />
+            <span>Closed</span>
+          </div>
         </div>
       )}
     </section>
