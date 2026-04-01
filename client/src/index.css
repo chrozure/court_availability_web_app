@@ -399,4 +399,9 @@ body {
     width: 22px;
     min-width: 22px;
   }
+
+  .time-header-cell {
+    width: 22px;
+    min-width: 22px;
+  }
 }
