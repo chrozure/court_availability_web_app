@@ -1,10 +1,13 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useLayoutEffect } from 'react'
 import CourtTimeline from './CourtTimeline'
 import { VenueAvailability } from '../types'
 
 interface VenueTimelineProps {
   venue: VenueAvailability;
   date: string;
+  slotMinutes?: number;
+  collapsed?: boolean;
+  onToggleCollapsed?: () => void;
 }
 
 function formatTime(timeStr: string): string {
@@ -17,8 +20,32 @@ function formatTime(timeStr: string): string {
   return ''
 }
 
-function VenueTimeline({ venue, date }: VenueTimelineProps) {
-  const [collapsed, setCollapsed] = useState(false)
+function mergeSlots(slots: { time: string; status: string }[], factor: number) {
+  const merged: { time: string; status: string }[] = []
+  for (let i = 0; i < slots.length; i += factor) {
+    const group = slots.slice(i, i + factor)
+    const hasBooked = group.some((s) => s.status === 'booked')
+    const allClosed = group.every((s) => s.status === 'closed')
+    merged.push({
+      time: group[0].time,
+      status: allClosed ? 'closed' : hasBooked ? 'booked' : group[0].status,
+    })
+  }
+  return merged
+}
+
+function VenueTimeline({ venue, date, slotMinutes = 15, collapsed: controlledCollapsed, onToggleCollapsed }: VenueTimelineProps) {
+  const [internalCollapsed, setInternalCollapsed] = useState(false)
+  const collapsed = controlledCollapsed ?? internalCollapsed
+  const toggleCollapsed = onToggleCollapsed ?? (() => setInternalCollapsed(c => !c))
+  const contentRef = useRef<HTMLDivElement>(null)
+  const [contentHeight, setContentHeight] = useState<number | undefined>(undefined)
+
+  useLayoutEffect(() => {
+    if (contentRef.current) {
+      setContentHeight(contentRef.current.scrollHeight)
+    }
+  })
   const scrollRef = useRef<HTMLDivElement>(null)
   const now = new Date()
   const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
@@ -26,8 +53,11 @@ function VenueTimeline({ venue, date }: VenueTimelineProps) {
   const isPastDate = date < todayStr
   const currentMinutesOfDay = now.getHours() * 60 + now.getMinutes()
 
+  const mergeFactor = Math.max(1, Math.round(slotMinutes / 15))
+
   // Build time header from the first court's slots
-  const timeSlots = venue.courts.length > 0 ? venue.courts[0].slots : []
+  const rawTimeSlots = venue.courts.length > 0 ? venue.courts[0].slots : []
+  const timeSlots = mergeFactor > 1 ? mergeSlots(rawTimeSlots, mergeFactor) : rawTimeSlots
 
   // Scroll to roughly current time on mount
   useEffect(() => {
@@ -35,15 +65,15 @@ function VenueTimeline({ venue, date }: VenueTimelineProps) {
       const currentMinutes = now.getHours() * 60 + now.getMinutes()
       const [fh, fm] = timeSlots[0].time.split(':').map(Number)
       const firstMinutes = fh * 60 + fm
-      const offsetSlots = Math.max(0, Math.floor((currentMinutes - firstMinutes) / 15) - 4)
-      const slotWidth = 28
+      const offsetSlots = Math.max(0, Math.floor((currentMinutes - firstMinutes) / (15 * mergeFactor)) - 4)
+      const slotWidth = 28 * mergeFactor
       scrollRef.current.scrollLeft = offsetSlots * slotWidth
     }
   }, [timeSlots])
 
   return (
     <section className="venue-section">
-      <div className="venue-header" onClick={() => setCollapsed(!collapsed)} style={{ cursor: 'pointer' }}>
+      <div className="venue-header" onClick={toggleCollapsed} style={{ cursor: 'pointer' }}>
         <div className="venue-header-left">
           <span className={`collapse-icon ${collapsed ? 'collapsed' : ''}`}>&#9660;</span>
           <h2>{venue.venueName}</h2>
@@ -59,17 +89,25 @@ function VenueTimeline({ venue, date }: VenueTimelineProps) {
         </a>
       </div>
 
-      {!collapsed && venue.error && (
-        <div className="venue-error">
-          Failed to load: {venue.error}
-        </div>
-      )}
+      <div
+        ref={contentRef}
+        className="venue-collapsible"
+        style={{
+          maxHeight: collapsed ? 0 : contentHeight,
+          opacity: collapsed ? 0 : 1,
+        }}
+      >
+        {venue.error && (
+          <div className="venue-error">
+            Failed to load: {venue.error}
+          </div>
+        )}
 
-      {!collapsed && venue.courts.length === 0 && !venue.error && (
-        <div className="venue-empty">No courts available for this date.</div>
-      )}
+        {venue.courts.length === 0 && !venue.error && (
+          <div className="venue-empty">No courts available for this date.</div>
+        )}
 
-      {!collapsed && venue.courts.length > 0 && (
+        {venue.courts.length > 0 && (
         <div className="venue-grid">
           <div className="labels-column">
             <div className="time-header-spacer" />
@@ -86,7 +124,11 @@ function VenueTimeline({ venue, date }: VenueTimelineProps) {
                 const label = formatTime(slot.time)
                 const isHourStart = slot.time.endsWith(':00')
                 return (
-                  <div key={slot.time} className={`time-header-cell ${isHourStart ? 'hour-start' : ''}`}>
+                  <div
+                    key={slot.time}
+                    className={`time-header-cell ${isHourStart ? 'hour-start' : ''}`}
+                    style={mergeFactor > 1 ? { width: 28 * mergeFactor, minWidth: 28 * mergeFactor } : undefined}
+                  >
                     {label && <span className="time-header-label">{label}</span>}
                   </div>
                 )
@@ -99,13 +141,14 @@ function VenueTimeline({ venue, date }: VenueTimelineProps) {
                 isToday={isToday}
                 isPastDate={isPastDate}
                 currentMinutesOfDay={currentMinutesOfDay}
+                mergeFactor={mergeFactor}
               />
             ))}
           </div>
         </div>
       )}
 
-      {!collapsed && venue.courts.length > 0 && (
+      {venue.courts.length > 0 && (
         <div className="legend">
           <div className="legend-item">
             <div className="legend-swatch available" />
@@ -129,6 +172,7 @@ function VenueTimeline({ venue, date }: VenueTimelineProps) {
           </div>
         </div>
       )}
+      </div>
     </section>
   )
 }

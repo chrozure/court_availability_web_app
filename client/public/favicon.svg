@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Handle -->
+  <line x1="54" y1="58" x2="34" y2="38" stroke="#1a1a1a" stroke-width="5" stroke-linecap="round"/>
+  <!-- Grip wrap -->
+  <line x1="52" y1="56" x2="48" y2="52" stroke="#333333" stroke-width="6" stroke-linecap="butt"/>
+  <line x1="46" y1="50" x2="42" y2="46" stroke="#333333" stroke-width="6" stroke-linecap="butt"/>
+  <!-- Clip path for strings -->
+  <defs>
+    <clipPath id="head">
+      <ellipse cx="22" cy="22" rx="12" ry="17" transform="rotate(-45 22 22)"/>
+    </clipPath>
+  </defs>
+  <!-- Head frame -->
+  <ellipse cx="22" cy="22" rx="13" ry="18" transform="rotate(-45 22 22)" fill="none" stroke="#2563eb" stroke-width="3.5"/>
+  <!-- Strings clipped to head, drawn along the racquet's tilted axes -->
+  <g clip-path="url(#head)">
+    <!-- Cross strings (perpendicular to handle, running top-right to bottom-left) -->
+    <line x1="4" y1="8" x2="36" y2="8" stroke="white" stroke-width="1" transform="rotate(-45 22 22)"/>
+    <line x1="4" y1="13" x2="36" y2="13" stroke="white" stroke-width="1" transform="rotate(-45 22 22)"/>
+    <line x1="4" y1="18" x2="36" y2="18" stroke="white" stroke-width="1" transform="rotate(-45 22 22)"/>
+    <line x1="4" y1="22" x2="36" y2="22" stroke="white" stroke-width="1" transform="rotate(-45 22 22)"/>
+    <line x1="4" y1="26" x2="36" y2="26" stroke="white" stroke-width="1" transform="rotate(-45 22 22)"/>
+    <line x1="4" y1="31" x2="36" y2="31" stroke="white" stroke-width="1" transform="rotate(-45 22 22)"/>
+    <line x1="4" y1="36" x2="36" y2="36" stroke="white" stroke-width="1" transform="rotate(-45 22 22)"/>
+    <!-- Main strings (along handle direction, running top-left to bottom-right) -->
+    <line x1="14" y1="0" x2="14" y2="44" stroke="white" stroke-width="1" transform="rotate(-45 22 22)"/>
+    <line x1="18" y1="0" x2="18" y2="44" stroke="white" stroke-width="1" transform="rotate(-45 22 22)"/>
+    <line x1="22" y1="0" x2="22" y2="44" stroke="white" stroke-width="1" transform="rotate(-45 22 22)"/>
+    <line x1="26" y1="0" x2="26" y2="44" stroke="white" stroke-width="1" transform="rotate(-45 22 22)"/>
+    <line x1="30" y1="0" x2="30" y2="44" stroke="white" stroke-width="1" transform="rotate(-45 22 22)"/>
+  </g>
+</svg>
+
