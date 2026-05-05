@@ -3,6 +3,8 @@ import path from "path";
 import cors from "cors";
 import venues from "./venues";
 import { fetchVenueAvailability } from "./scraper";
+import badmintonVenues from "./badminton-venues";
+import { fetchBadmintonAvailability } from "./badminton-scraper";
 import { VenueAvailability } from "./types";
 
 const app = express();
@@ -62,6 +64,46 @@ app.get("/api/availability", async (req: Request, res: Response) => {
   } catch (err) {
     console.error("Error fetching availability:", err);
     res.status(500).json({ error: "Failed to fetch availability" });
+  }
+});
+
+// GET /api/badminton/availability?date=2026-05-05 - get badminton availability
+app.get("/api/badminton/availability", async (req: Request, res: Response) => {
+  const date =
+    (req.query.date as string) || new Date().toISOString().split("T")[0];
+
+  try {
+    const results: VenueAvailability[] = await Promise.all(
+      badmintonVenues.map(async (venue): Promise<VenueAvailability> => {
+        try {
+          const courts = await fetchBadmintonAvailability(venue.sportId, date);
+          return {
+            venueId: venue.sportId,
+            venueName: venue.name,
+            bookingUrl: venue.bookingUrl,
+            date,
+            courts,
+          };
+        } catch (err) {
+          const message =
+            err instanceof Error ? err.message : "Unknown error";
+          console.error(`Error fetching badminton venue ${venue.name}:`, message);
+          return {
+            venueId: venue.sportId,
+            venueName: venue.name,
+            bookingUrl: venue.bookingUrl,
+            date,
+            courts: [],
+            error: message,
+          };
+        }
+      })
+    );
+
+    res.json(results);
+  } catch (err) {
+    console.error("Error fetching badminton availability:", err);
+    res.status(500).json({ error: "Failed to fetch badminton availability" });
   }
 });
 
