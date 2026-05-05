@@ -185,8 +185,8 @@ body {
 
 /* Court Row */
 .court-label {
-  min-width: 180px;
-  max-width: 180px;
+  min-width: 196px;
+  max-width: 196px;
   height: 36px;
   padding: 0 16px;
   display: flex;

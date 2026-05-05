@@ -75,7 +75,7 @@ function VenueTimeline({ venue, date }: VenueTimelineProps) {
             <div className="time-header-spacer" />
             {venue.courts.map((court) => (
               <div key={court.id} className="court-label">
-                <span className="court-name">{court.name}</span>
+                <span className="court-name" title={court.name}>{court.name}</span>
                 {court.hasLighting && <span className="court-lighting" title="Has floodlights">💡</span>}
               </div>
             ))}
