@@ -1,8 +1,8 @@
 import fetch from "node-fetch";
 import { Court, TimeSlot } from "./types";
 
-const YEPBOOKING_AJAX =
-  "https://nbc.yepbooking.com.au/ajax/ajax.schema.php";
+const YEPBOOKING_BASE = "https://nbc.yepbooking.com.au";
+const YEPBOOKING_AJAX = `${YEPBOOKING_BASE}/ajax/ajax.schema.php`;
 
 /**
  * Convert "10:00am" / "1:00pm" to "10:00" / "13:00".
@@ -22,8 +22,9 @@ function parseAmPmTo24h(raw: string): string {
  * Fetches badminton court availability from yepbooking for a given
  * sport/venue ID on a given date.
  *
- * The HTML returned by yepbooking is malformed (missing </tr> tags),
- * which breaks DOM parsers. We use regex-based extraction instead.
+ * The endpoint requires a POST request with a valid session cookie.
+ * The HTML returned is malformed (missing </tr> tags), so we use
+ * regex-based extraction.
  */
 export async function fetchBadmintonAvailability(
   sportId: number,
@@ -34,27 +35,38 @@ export async function fetchBadmintonAvailability(
   const month = d.getMonth() + 1;
   const year = d.getFullYear();
 
-  const url = `${YEPBOOKING_AJAX}?day=${day}&month=${month}&year=${year}&id_sport=${sportId}&event=pageLoad&tab_type=normal&timetableWidth=780&schema_fixed_date=`;
+  // First hit the main page to obtain a session cookie
+  const mainRes = await fetch(YEPBOOKING_BASE);
+  const setCookieHeader = mainRes.headers.get("set-cookie");
+  const sessionCookie = setCookieHeader?.match(/PHPSESSID=[^;]+/)?.[0] ?? "";
 
-  const res = await fetch(url);
+  // POST to the AJAX endpoint (GET no longer returns data)
+  const body = new URLSearchParams({
+    day: String(day),
+    month: String(month),
+    year: String(year),
+    id_sport: String(sportId),
+    event: "pageLoad",
+    tab_type: "normal",
+    timetableWidth: "780",
+    schema_fixed_date: "",
+  });
+
+  const res = await fetch(YEPBOOKING_AJAX, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      Referer: `${YEPBOOKING_BASE}/`,
+      Cookie: sessionCookie,
+    },
+    body: body.toString(),
+  });
   const html = await res.text();
 
-  // --- Extract court names from lane table rows ---
-  const laneRegex = /trSchemaLane_(\d+)[\s\S]*?<span>(.*?)<\/span>/g;
-  const courtInfos: { laneId: string; name: string }[] = [];
-  let laneMatch;
-  while ((laneMatch = laneRegex.exec(html)) !== null) {
-    // Only take the first occurrence of each lane (from the lane table)
-    if (!courtInfos.some((c) => c.laneId === laneMatch![1])) {
-      courtInfos.push({ laneId: laneMatch[1], name: laneMatch[2].trim() });
-    }
-  }
-  if (courtInfos.length === 0) return [];
-
   // --- Extract time headers ---
-  // They appear as <td colspan="1">10:00am</td> in tr.times inside schemaIndividual
+  // They appear as <td colspan="1">10:00am</td> in tr.times inside <thead>
   const timesMatch = html.match(
-    /schemaIndividual[\s\S]*?<tr class="times">([\s\S]*?)<\/tr>/
+    /<tr class="times">([\s\S]*?)(?:<\/tr>|<tr[\s>])/
   );
   if (!timesMatch) return [];
 
@@ -66,40 +78,32 @@ export async function fetchBadmintonAvailability(
   }
   if (timeHeaders.length === 0) return [];
 
-  // --- Parse each court's row from the data table ---
-  // The data table rows also use trSchemaLane_XX classes.
-  // We need the SECOND occurrence of each lane (first is in lane table).
+  // --- Parse each court row ---
+  // Each row is: <tr class="trSchemaLane_XX"><th ...><span>CourtName</span></th><td>...</td>...
+  // Rows are NOT closed with </tr>, so we match from one trSchemaLane to the next.
+  const rowRegex =
+    /trSchemaLane_(\d+)">([\s\S]*?)(?=<tr class="trSchemaLane_|<tr class="prices"|$)/g;
   const courts: Court[] = [];
+  let rowMatch;
 
-  for (const info of courtInfos) {
-    // Find the second occurrence of trSchemaLane_XX (the data row)
-    const rowPattern = new RegExp(
-      `trSchemaLane_${info.laneId}">(.*?)(?=<tr class="|$)`,
-      "s"
-    );
-    // Find all occurrences
-    const allOccurrences: string[] = [];
-    const globalPattern = new RegExp(
-      `trSchemaLane_${info.laneId}">(.*?)(?=<tr |$)`,
-      "gs"
-    );
-    let rowMatch;
-    while ((rowMatch = globalPattern.exec(html)) !== null) {
-      allOccurrences.push(rowMatch[1]);
-    }
+  while ((rowMatch = rowRegex.exec(html)) !== null) {
+    const laneId = rowMatch[1];
+    const rowHtml = rowMatch[2];
 
-    // The second occurrence is the data row (first is the lane label row)
-    const dataRowHtml = allOccurrences.length >= 2 ? allOccurrences[1] : null;
-    if (!dataRowHtml) continue;
+    // Extract court name from <th><div><span>...</span></div></th>
+    const nameMatch = rowHtml.match(/<th[^>]*>[\s\S]*?<span>(.*?)<\/span>/);
+    if (!nameMatch) continue;
+    const courtName = nameMatch[1].trim();
 
-    // Extract each <td> with its title and class
-    const tdRegex = /<td\b([^>]*)>/g;
+    // Extract each <td> with its title/class and content
+    const tdRegex = /<td\b([^>]*)>([\s\S]*?)(?=<td\b|<tr[\s>]|$)/g;
     const hourlySlots: TimeSlot[] = [];
     let timeIdx = 0;
     let tdMatch;
 
-    while ((tdMatch = tdRegex.exec(dataRowHtml)) !== null) {
+    while ((tdMatch = tdRegex.exec(rowHtml)) !== null) {
       const attrs = tdMatch[1];
+      const cellContent = tdMatch[2];
 
       const titleMatch = attrs.match(/title="([^"]*)"/);
       const title = titleMatch ? titleMatch[1] : "";
@@ -110,11 +114,19 @@ export async function fetchBadmintonAvailability(
       const colspanMatch = attrs.match(/colspan="(\d+)"/);
       const colspan = colspanMatch ? parseInt(colspanMatch[1]) : 1;
 
+      // Check for available link inside the cell (new layout)
+      const hasAvailableLink = cellContent.includes('class="empty');
+
       let status: "booked" | "available" | "closed";
       if (title.includes("Closed")) {
         status = "closed";
       } else if (cls.includes("booked")) {
         status = "booked";
+      } else if (cls.includes("old")) {
+        // Past time slots
+        status = "booked";
+      } else if (hasAvailableLink || title.includes("Available")) {
+        status = "available";
       } else {
         status = "available";
       }
@@ -144,8 +156,8 @@ export async function fetchBadmintonAvailability(
     }
 
     courts.push({
-      id: info.laneId,
-      name: info.name,
+      id: laneId,
+      name: courtName,
       hasLighting: false,
       slots,
     });
