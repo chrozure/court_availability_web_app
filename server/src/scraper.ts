@@ -122,8 +122,8 @@ function generateTimeSlots(
   const slots: TimeSlot[] = [];
   const stepMinutes = 15;
 
-  // Fixed display range: 6am to 10pm for all courts
-  const displayStartMinutes = 6 * 60;
+  // Fixed display range: 7am to 10pm for all courts
+  const displayStartMinutes = 7 * 60;
   const displayEndMinutes = 22 * 60;
 
   // Determine this court's open window
