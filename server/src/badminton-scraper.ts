@@ -114,20 +114,13 @@ export async function fetchBadmintonAvailability(
       const colspanMatch = attrs.match(/colspan="(\d+)"/);
       const colspan = colspanMatch ? parseInt(colspanMatch[1]) : 1;
 
-      // Check for available link inside the cell (new layout)
-      const hasAvailableLink = cellContent.includes('class="empty');
-
       let status: "booked" | "available" | "closed";
       if (title.includes("Closed")) {
         status = "closed";
       } else if (cls.includes("booked")) {
         status = "booked";
-      } else if (cls.includes("old")) {
-        // Past time slots
-        status = "booked";
-      } else if (hasAvailableLink || title.includes("Available")) {
-        status = "available";
       } else {
+        // "old" class = was available but past, empty link = currently available
         status = "available";
       }
 
