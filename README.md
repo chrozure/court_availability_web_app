@@ -101,12 +101,66 @@ This app is designed to deploy as a single process. For platforms like **Render*
 2. Add an entry to the `daifoVenues` array in `server/src/badminton-venues.ts`
 3. Restart the backend server
 
+## MCP Server
+
+An MCP (Model Context Protocol) server is included so you can query court availability from an LLM like Claude.
+
+### Tool
+
+**`get_available_courts`** — Find available tennis and badminton courts.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `date` | string (optional) | Date in `YYYY-MM-DD` format. Defaults to today. |
+| `time` | string (optional) | Time in `HH:MM` 24-hour format (e.g. `18:00`). Filters to courts available at that time. |
+| `sport` | string (optional) | `"tennis"`, `"badminton"`, or `"all"` (default). |
+
+### Setup with Claude Desktop
+
+Add the following to your Claude Desktop config (`claude_desktop_config.json`):
+
+```json
+{
+  "mcpServers": {
+    "court-availability": {
+      "command": "npx",
+      "args": ["tsx", "<path-to-repop>/server/src/mcp-server.ts"]
+    }
+  }
+}
+```
+
+Replace `/path/to/tennis_availability_web_app` with the absolute path to the repo on your machine.
+
+### Setup with VS Code
+
+Add the following to `.vscode/mcp.json` in the workspace:
+
+```json
+{
+  "servers": {
+    "court-availability": {
+      "command": "npx",
+      "args": ["tsx", "src/mcp-server.ts"],
+      "cwd": "server"
+    }
+  }
+}
+```
+
+### Example queries
+
+- "What badminton courts are free at 6pm today?"
+- "Are there any tennis courts available this Saturday?"
+- "Show me all available courts on 2026-06-15 at 10am"
+
 ## Project structure
 
 ```
 server/              Express backend (TypeScript)
   src/
     index.ts              API server (port 3001)
+    mcp-server.ts         MCP server for LLM tool use
     scraper.ts            Fetches tennis data from bookable.net.au API
     venues.ts             Tennis venue configuration
     badminton-scraper.ts  Scrapes NBC Yepbooking for badminton availability
